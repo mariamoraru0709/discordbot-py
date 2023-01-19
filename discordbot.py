@@ -14,7 +14,7 @@ CHANNEL_ID = 1065442694773620776
 MAX_SESSION_TIME_MINUTES = 1
 courier_client = Courier(auth_token=COURIER_TOKEN)
 
-pcNumberList = []
+pcNameList = []
 pcStatusList = []
 isSentList = []
 timeList = []
@@ -30,7 +30,8 @@ async def on_ready():
     client.loop.create_task(watch())    
     await channel.send("Hello, Checking bot is ready!")
 
-async def watch():    
+async def watch():
+    latestMessage = ""
     channel = client.get_channel(CHANNEL_ID)
 
     while True:
@@ -40,10 +41,10 @@ async def watch():
             async for message in channel.history(limit=1):
                 timeTemp = datetime.now().strftime("%H%M%S")
                 now = int(str(timeTemp)[0:2]) * 3600 + int(str(timeTemp)[2:4]) * 60 + int(str(timeTemp)[4:6])
-                if message.content.endswith('is working') and message.content.startswith('pc'):
-                    pcNumber = int(message.content.replace('is working', '').replace('pc', '').strip())
-                    if pcNumber in pcNumberList:
-                        order = orderFunction(pcNumber, pcNumberList)
+                if message.content.endswith('is working'):
+                    pcName = str(message.content.replace('is working', '').strip())
+                    if pcName in pcNameList:
+                        order = orderFunction(pcName, pcNameList)
                         if pcStatusList[order] == 0:
                             pcStatusList[order] = 1
                             timeList[order] = now
@@ -53,16 +54,17 @@ async def watch():
                             timeList[order] = now
                             isSentList[order] = 0
                     else:
-                        pcNumberList.append(pcNumber)
+                        pcNameList.append(pcName)
                         pcStatusList.append(1)
                         timeList.append(now)
                         isSentList.append(0)
-                try:
-                    await message.delete()
-                    # await channel.purge(limit=1)
-                except:
-                    pass  
-                
+                    try:
+                        if message.author != client.user:
+                            latestMessage = message.content + "."
+                        await message.delete()
+                    except:
+                        pass
+
             await asyncio.sleep(1)
             intTime -= 1           
 
@@ -88,15 +90,22 @@ async def watch():
         for pcStatus in pcStatusList:
             if pcStatus == 0 and isSentList[order] == 0:
                 isSentList[order] = 1
-                send_email("computer" + str(pcNumberList[order]) + " Was Stopped")
-                print("computer" + str(pcNumberList[order]) + " Was Stopped")
+                # send_email(str(pcNumberList[order]) + " Was Stopped")
+                print(str(pcNameList[order]) + " was Stopped")
             if pcStatus == 1 and isSentList[order] == 0:
                 isSentList[order] = 1
-                send_email("computer" + str(pcNumberList[order]) + " Was Started")
-                print("computer" + str(pcNumberList[order]) + " Was Started")
+                # send_email(str(pcNumberList[order]) + " Was Started")
+                print(str(pcNameList[order]) + " was Started")
             if pcStatus == 2:
                 isSentList[order] = 0
             order += 1
+
+        # send latest message to discord
+        if latestMessage:
+            async for message in channel.history(limit=None):
+                await message.delete()
+            await channel.send(latestMessage)
+            latestMessage = ""
 
 def orderFunction(item, l, n=0):
     if l:
