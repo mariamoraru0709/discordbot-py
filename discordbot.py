@@ -1,4 +1,3 @@
-from distutils.sysconfig import PREFIX
 import discord
 from discord.ext import commands, tasks
 from datetime import datetime
@@ -6,7 +5,6 @@ import asyncio
 import os
 from trycourier import Courier
 
-PREFIX = os.environ['PREFIX']
 TOKEN = os.environ['TOKEN']
 COURIER_TOKEN = os.environ['COURIER_TOKEN']
 RECEIVE_EMAIL = os.environ['RECEIVE_EMAIL']
