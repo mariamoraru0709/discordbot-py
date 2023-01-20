@@ -12,7 +12,10 @@ CHANNEL_ID = 1065442694773620776
 MAX_SESSION_TIME_MINUTES = 1
 courier_client = Courier(auth_token=COURIER_TOKEN)
 
+messageIDList = []
+messageContentList = []
 pcNameList = []
+nonWorkingPCNameList = []
 pcStatusList = []
 isSentList = []
 timeList = []
@@ -25,11 +28,12 @@ client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 async def on_ready():
     print('Hello, Checking bot is ready!')
     channel = client.get_channel(CHANNEL_ID)
-    client.loop.create_task(watch())    
+    async for message in channel.history(limit=100):
+        await message.delete()
+    client.loop.create_task(watch())
     await channel.send("Hello, Checking bot is ready!")
 
 async def watch():
-    latestMessage = ""
     channel = client.get_channel(CHANNEL_ID)
 
     while True:
@@ -40,7 +44,15 @@ async def watch():
                 timeTemp = datetime.now().strftime("%H%M%S")
                 now = int(str(timeTemp)[0:2]) * 3600 + int(str(timeTemp)[2:4]) * 60 + int(str(timeTemp)[4:6])
                 if message.content.endswith('is working'):
-                    pcName = str(message.content.replace('is working', '').strip())
+                    pcName = getMachine_Name(message.content)
+                    if message.id in messageIDList:
+                        break
+                    messageIDList.append(message.id)
+                    messageContentList.append(message.content)
+                    if setdiff(messageIDList, messageContentList) != 0:
+                        msg = await channel.fetch_message(setdiff(messageIDList, messageContentList))
+                        await msg.delete()
+
                     if pcName in pcNameList:
                         order = orderFunction(pcName, pcNameList)
                         if pcStatusList[order] == 0:
@@ -56,15 +68,9 @@ async def watch():
                         pcStatusList.append(1)
                         timeList.append(now)
                         isSentList.append(0)
-                    try:
-                        if message.author != client.user:
-                            latestMessage = message.content + "."
-                        await message.delete()
-                    except:
-                        pass
 
             await asyncio.sleep(1)
-            intTime -= 1           
+            intTime -= 1
 
         # get element that exceed specified time
         order = 0
@@ -80,6 +86,7 @@ async def watch():
                 else:
                     isSentList[order] = 0
                 pcStatusList[order] = 0
+                nonWorkingPCNameList.append(str(pcNameList[order]))
                 timeList[order] = now
 
             order += 1
@@ -92,18 +99,29 @@ async def watch():
                 print(str(pcNameList[order]) + " was Stopped")
             if pcStatus == 1 and isSentList[order] == 0:
                 isSentList[order] = 1
-                send_email(str(pcNameList[order]) + " Was Started")
-                print(str(pcNameList[order]) + " was Started")
+                if str(pcNameList[order]) in nonWorkingPCNameList:
+                    nonWorkingPCNameList.remove(str(pcNameList[order]))
+                    print(str(pcNameList[order]) + " was Started again")
+                else:
+                    send_email(str(pcNameList[order]) + " Was Started")
+                    print(str(pcNameList[order]) + " was Started")
             if pcStatus == 2:
                 isSentList[order] = 0
             order += 1
 
-        # send latest message to discord
-        if latestMessage:
-            async for message in channel.history(limit=None):
-                await message.delete()
-            await channel.send(latestMessage)
-            latestMessage = ""
+def getMachine_Name (content):
+    return str(content.split()[0].strip())
+
+def setdiff(messageIDList, messageContentList):
+    order = 0
+    id = 0
+    for content in messageContentList:
+        if order == len(messageContentList) - 1:
+            break
+        if content == messageContentList[len(messageContentList) - 1]:
+            id = messageIDList[order]
+        order += 1
+    return id
 
 def orderFunction(item, l, n=0):
     if l:
@@ -111,7 +129,7 @@ def orderFunction(item, l, n=0):
             return n
         elif len(l) >= 2:
             return orderFunction(item, l[1:], n+1)
-        
+
 def is_me(m):
     return m.author == client.user
 
