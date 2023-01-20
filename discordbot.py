@@ -37,9 +37,9 @@ async def watch():
     channel = client.get_channel(CHANNEL_ID)
 
     while True:
-        bound = MAX_SESSION_TIME_MINUTES * 60
+        bound = MAX_SESSION_TIME_MINUTES * 10
         intTime = bound
-        while intTime > 18:
+        while intTime > 2:
             async for message in channel.history(limit=1):
                 timeTemp = datetime.now().strftime("%H%M%S")
                 now = int(str(timeTemp)[0:2]) * 3600 + int(str(timeTemp)[2:4]) * 60 + int(str(timeTemp)[4:6])
@@ -77,7 +77,7 @@ async def watch():
         timeTemp = datetime.now().strftime("%H%M%S")
         now = int(str(timeTemp)[0:2]) * 3600 + int(str(timeTemp)[2:4]) * 60 + int(str(timeTemp)[4:6])
         for pastTime in timeList:
-            if (int(now - pastTime)) > bound:
+            if (int(now - pastTime)) > 20:
                 if pcStatusList[order] == 0:
                     if isSentList[order] == 0:
                         isSentList[order] = 0
